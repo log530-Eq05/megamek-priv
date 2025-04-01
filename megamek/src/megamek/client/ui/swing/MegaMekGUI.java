@@ -195,154 +195,115 @@ public class MegaMekGUI implements IPreferenceChangeListener {
     /**
      * Display the main menu.
      */
+
     private void showMainMenu() {
-        SkinSpecification skinSpec = SkinXMLHandler.getSkin(UIComponents.MainMenuBorder.getComp(),
-                true);
+        SkinSpecification skinSpec = SkinXMLHandler.getSkin(UIComponents.MainMenuBorder.getComp(), true);
+        setupFrameAppearance();
+
+        JLabel labVersion = createVersionLabel(skinSpec);
+        List<MegaMekButton> buttons = createMenuButtons();
+
+        Dimension scaledMonitorSize = UIUtil.getScaledScreenSize(frame);
+        JLabel splash = createSplashScreen(skinSpec, scaledMonitorSize);
+
+        Dimension minButtonDim = calculateButtonSize(buttons, scaledMonitorSize, splash);
+        setButtonSizes(buttons, minButtonDim);
+
+        layoutComponents(labVersion, splash, buttons);
+
+        frame.validate();
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+    }
+
+    private void setupFrameAppearance() {
         frame.getContentPane().removeAll();
         frame.setBackground(SystemColor.menu);
         frame.setForeground(SystemColor.menuText);
         frame.setResizable(false);
+    }
 
-        JLabel labVersion = new JLabel(Messages.getString("MegaMek.Version") + MMConstants.VERSION,
-                JLabel.CENTER);
+    private JLabel createVersionLabel(SkinSpecification skinSpec) {
+        JLabel labVersion = new JLabel(Messages.getString("MegaMek.Version") + MMConstants.VERSION, JLabel.CENTER);
         labVersion.setPreferredSize(new Dimension(250, 15));
         if (!skinSpec.fontColors.isEmpty()) {
             labVersion.setForeground(skinSpec.fontColors.get(0));
         }
-        MegaMekButton hostB = new MegaMekButton(Messages.getString("MegaMek.hostNewGame.label"),
-                UIComponents.MainMenuButton.getComp(), true);
-        hostB.setActionCommand(ClientGUI.FILE_GAME_NEW);
-        hostB.addActionListener(actionListener);
-        MegaMekButton scenB = new MegaMekButton(Messages.getString("MegaMek.hostScenario.label"),
-                UIComponents.MainMenuButton.getComp(), true);
-        scenB.setActionCommand(ClientGUI.FILE_GAME_SCENARIO);
-        scenB.addActionListener(actionListener);
-        MegaMekButton loadB = new MegaMekButton(Messages.getString("MegaMek.hostSavedGame.label"),
-                UIComponents.MainMenuButton.getComp(), true);
-        loadB.setActionCommand(ClientGUI.FILE_GAME_LOAD);
-        loadB.addActionListener(actionListener);
-        MegaMekButton connectB = new MegaMekButton(Messages.getString("MegaMek.Connect.label"),
-                UIComponents.MainMenuButton.getComp(), true);
-        connectB.setActionCommand(ClientGUI.FILE_GAME_CONNECT);
-        connectB.addActionListener(actionListener);
-        MegaMekButton connectSBF = new MegaMekButton("Connect to SBF",
-                UIComponents.MainMenuButton.getComp(), true);
-        connectSBF.setActionCommand(ClientGUI.FILE_GAME_CONNECT_SBF);
-        connectSBF.addActionListener(actionListener);
-        MegaMekButton botB = new MegaMekButton(Messages.getString("MegaMek.ConnectAsBot.label"),
-                UIComponents.MainMenuButton.getComp(), true);
-        botB.setActionCommand(ClientGUI.FILE_GAME_CONNECT_BOT);
-        botB.addActionListener(actionListener);
-        MegaMekButton editB = new MegaMekButton(Messages.getString("MegaMek.MapEditor.label"),
-                UIComponents.MainMenuButton.getComp(), true);
-        editB.setActionCommand(ClientGUI.BOARD_NEW);
-        editB.addActionListener(actionListener);
-        MegaMekButton skinEditB = new MegaMekButton(Messages.getString("MegaMek.SkinEditor.label"),
-                UIComponents.MainMenuButton.getComp(), true);
-        skinEditB.setActionCommand(ClientGUI.MAIN_SKIN_NEW);
-        skinEditB.addActionListener(actionListener);
-        MegaMekButton quitB = new MegaMekButton(Messages.getString("MegaMek.Quit.label"),
-                UIComponents.MainMenuButton.getComp(), true);
-        quitB.setActionCommand(ClientGUI.MAIN_QUIT);
-        quitB.addActionListener(actionListener);
+        return labVersion;
+    }
 
-        // Use the current monitor, so we don't "overflow" computers whose primary
-        // displays aren't as large as their secondary displays.
-        Dimension scaledMonitorSize = UIUtil.getScaledScreenSize(frame);
-        Image imgSplash = getSplashScreen(skinSpec.backgrounds, scaledMonitorSize.width, scaledMonitorSize.height);
-        JLabel splash = UIUtil.createSplashComponent(imgSplash, frame, scaledMonitorSize);
+    private List<MegaMekButton> createMenuButtons() {
+        return List.of(
+              createButton("MegaMek.hostNewGame.label", ClientGUI.FILE_GAME_NEW),
+              createButton("MegaMek.hostSavedGame.label", ClientGUI.FILE_GAME_LOAD),
+              createButton("MegaMek.hostScenario.label", ClientGUI.FILE_GAME_SCENARIO),
+              createButton("MegaMek.Connect.label", ClientGUI.FILE_GAME_CONNECT),
+              createButton("MegaMek.ranking.label",ClientGUI.GAME_RANKING),
+              createButton("MegaMek.MapEditor.label", ClientGUI.BOARD_NEW),
+              createButton("MegaMek.SkinEditor.label", ClientGUI.MAIN_SKIN_NEW),
+              createButton("MegaMek.Quit.label", ClientGUI.MAIN_QUIT)
+        );
+    }
 
-        FontMetrics metrics = hostB.getFontMetrics(loadB.getFont());
-        int width = metrics.stringWidth(hostB.getText());
+    private MegaMekButton createButton(String labelKey, String actionCommand) {
+        MegaMekButton button = new MegaMekButton(Messages.getString(labelKey), UIComponents.MainMenuButton.getComp(), true);
+        button.setActionCommand(actionCommand);
+        button.addActionListener(actionListener);
+        return button;
+    }
+
+    private JLabel createSplashScreen(SkinSpecification skinSpec, Dimension screenSize) {
+        Image imgSplash = getSplashScreen(skinSpec.backgrounds, screenSize.width, screenSize.height);
+        return UIUtil.createSplashComponent(imgSplash, frame, screenSize);
+    }
+
+    private Dimension calculateButtonSize(List<MegaMekButton> buttons, Dimension screenSize, JLabel splash) {
+        FontMetrics metrics = buttons.get(0).getFontMetrics(buttons.get(0).getFont());
+        int width = metrics.stringWidth(buttons.get(0).getText());
         int height = metrics.getHeight();
         Dimension textDim = new Dimension(width + 50, height + 10);
 
-        // Strive for no more than ~90% of the screen and use golden ratio to make
-        // the button width "look" reasonable.
-        int maximumWidth = (int) (0.9 * scaledMonitorSize.width) - splash.getPreferredSize().width;
+        int maxWidth = (int) (0.9 * screenSize.width) - splash.getPreferredSize().width;
+        maxWidth = Math.min(maxWidth, (int) (0.5 * splash.getPreferredSize().width));
 
-        //no more than 50% of image width
-        if (maximumWidth > (int) (0.5 * splash.getPreferredSize().width)) {
-            maximumWidth = (int) (0.5 * splash.getPreferredSize().width);
+        Dimension minButtonDim = new Dimension((int) (maxWidth / 1.618), 25);
+        return textDim.getWidth() > minButtonDim.getWidth() ? textDim : minButtonDim;
+    }
+
+    private void setButtonSizes(List<MegaMekButton> buttons, Dimension size) {
+        for (MegaMekButton button : buttons) {
+            button.setPreferredSize(size);
+            button.setMinimumSize(size);
         }
+    }
 
-        Dimension minButtonDim = new Dimension((int) (maximumWidth / 1.618), 25);
-        if (textDim.getWidth() > minButtonDim.getWidth()) {
-            minButtonDim = textDim;
-        }
-
-        hostB.setPreferredSize(minButtonDim);
-        connectB.setPreferredSize(minButtonDim);
-        botB.setPreferredSize(minButtonDim);
-        editB.setPreferredSize(minButtonDim);
-        skinEditB.setPreferredSize(minButtonDim);
-        scenB.setPreferredSize(minButtonDim);
-        loadB.setPreferredSize(minButtonDim);
-        quitB.setPreferredSize(minButtonDim);
-        hostB.setPreferredSize(minButtonDim);
-
-        connectB.setMinimumSize(minButtonDim);
-        botB.setMinimumSize(minButtonDim);
-        editB.setMinimumSize(minButtonDim);
-        skinEditB.setMinimumSize(minButtonDim);
-        scenB.setMinimumSize(minButtonDim);
-        loadB.setMinimumSize(minButtonDim);
-        quitB.setMinimumSize(minButtonDim);
-
-        // layout
+    private void layoutComponents(JLabel labVersion, JLabel splash, List<MegaMekButton> buttons) {
         GridBagLayout gridbag = new GridBagLayout();
         GridBagConstraints c = new GridBagConstraints();
         frame.getContentPane().setLayout(gridbag);
-        // Left Column
+
         c.anchor = GridBagConstraints.WEST;
         c.insets = new Insets(10, 5, 10, 10);
-        c.ipadx = 10;
-        c.ipady = 5;
         c.gridx = 0;
         c.gridy = 0;
-        c.fill = GridBagConstraints.NONE;
-        c.weightx = 0.0;
-        c.weighty = 0.0;
-        c.gridwidth = 1;
         c.gridheight = 9;
         addBag(splash, gridbag, c);
-        // Right Column
+
         c.insets = new Insets(4, 4, 1, 12);
         c.fill = GridBagConstraints.BOTH;
         c.weightx = 1.0;
         c.weighty = 1.0;
-        c.ipadx = 0;
-        c.ipady = 0;
         c.gridheight = 1;
         c.gridx = 1;
         c.gridy = 0;
         addBag(labVersion, gridbag, c);
-        c.gridy++;
-        addBag(hostB, gridbag, c);
-        c.gridy++;
-        addBag(loadB, gridbag, c);
-        c.gridy++;
-        addBag(scenB, gridbag, c);
-        c.gridy++;
-        addBag(connectB, gridbag, c);
-//        Connecting to an SBF game is not useful (yet)
-//        c.gridy++;
-//        addBag(connectSBF, gridbag, c);
-        c.gridy++;
-//        Connecting as a bot was deemed not useful; leaving this for now to uncomment if necessary
-//        addBag(botB, gridbag, c);
-//        c.gridy++;
-        addBag(editB, gridbag, c);
-        c.gridy++;
-        addBag(skinEditB, gridbag, c);
-        c.gridy++;
-        c.insets = new Insets(4, 4, 15, 12);
-        addBag(quitB, gridbag, c);
-        frame.validate();
-        frame.pack();
-        // center window in screen
-        frame.setLocationRelativeTo(null);
+
+        for (MegaMekButton button : buttons) {
+            c.gridy++;
+            addBag(button, gridbag, c);
+        }
     }
+
 
     /**
      * Display the board editor.
@@ -774,6 +735,7 @@ public class MegaMekGUI implements IPreferenceChangeListener {
             GameOptionsDialog god = new GameOptionsDialog(frame, twGame.getOptions(), false);
             god.update(twGame.getOptions());
             god.setEditable(true);
+            god.setEditable(true);
             god.setVisible(true);
             for (IBasicOption opt : god.getOptions()) {
                 IOption orig = game.getOptions().getOption(opt.getName());
@@ -1037,6 +999,10 @@ public class MegaMekGUI implements IPreferenceChangeListener {
                 break;
             case ClientGUI.FILE_GAME_SCENARIO:
                 scenario();
+                break;
+            case ClientGUI.GAME_RANKING:
+                //SHOW RANKING UI
+                //TO DO
                 break;
             case ClientGUI.FILE_GAME_CONNECT:
                 connect();
