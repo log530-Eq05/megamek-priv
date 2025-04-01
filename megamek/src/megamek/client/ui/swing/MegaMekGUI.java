@@ -744,7 +744,6 @@ public class MegaMekGUI implements IPreferenceChangeListener {
             GameOptionsDialog god = new GameOptionsDialog(frame, twGame.getOptions(), false);
             god.update(twGame.getOptions());
             god.setEditable(true);
-            god.setEditable(true);
             god.setVisible(true);
             for (IBasicOption opt : god.getOptions()) {
                 IOption orig = game.getOptions().getOption(opt.getName());
