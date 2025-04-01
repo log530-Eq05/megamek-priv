@@ -48,7 +48,6 @@ import megamek.codeUtilities.StringUtility;
 import megamek.common.*;
 import megamek.common.annotations.Nullable;
 import megamek.common.jacksonadapters.BotParser;
-import megamek.common.options.GameOptions;
 import megamek.common.options.IBasicOption;
 import megamek.common.options.IOption;
 import megamek.common.preference.IPreferenceChangeListener;
@@ -56,6 +55,7 @@ import megamek.common.preference.PreferenceChangeEvent;
 import megamek.common.preference.PreferenceManager;
 import megamek.common.scenario.Scenario;
 import megamek.common.scenario.ScenarioLoader;
+import megamek.common.scenario.ScenarioLoaderException;
 import megamek.common.util.EmailService;
 import megamek.common.util.ImageUtil;
 import megamek.common.util.fileUtils.MegaMekFile;
@@ -723,15 +723,13 @@ public class MegaMekGUI implements IPreferenceChangeListener {
     void scenario() {
         ScenarioChooser scenarioChooser = new ScenarioChooser(frame);
         scenarioChooser.setVisible(true);
-        if (scenarioChooser.getSelectedScenarioFilename() == null) {
-            return;
-        }
+        String filename = scenarioChooser.getSelectedScenarioFilename();
+        if (filename == null) { return; }
 
         Scenario scenario;
         IGame game;
         try {
-            ScenarioLoader sl = new ScenarioLoader(new File(scenarioChooser.getSelectedScenarioFilename()));
-            scenario = sl.load();
+            scenario = loadScenario(filename);
             game = scenario.createGame();
         } catch (Exception e) {
             logger.errorDialog(e, Messages.getString("MegaMek.HostScenarioAlert.message", e.getMessage()),
@@ -740,25 +738,10 @@ public class MegaMekGUI implements IPreferenceChangeListener {
         }
 
         // popup options dialog
-        if (!scenario.hasFixedGameOptions() && game instanceof Game twGame) {
-            GameOptionsDialog god = new GameOptionsDialog(frame, twGame.getOptions(), false);
-            god.update(twGame.getOptions());
-            god.setEditable(true);
-            god.setVisible(true);
-            for (IBasicOption opt : god.getOptions()) {
-                IOption orig = game.getOptions().getOption(opt.getName());
-                orig.setValue(opt.getValue());
-            }
-        }
+        configureOptionsDialog(scenario, game);
 
         // popup planetary conditions dialog
-        if ((game instanceof PlanetaryConditionsUsing) && !scenario.hasFixedPlanetaryConditions()) {
-            PlanetaryConditionsUsing plGame = (PlanetaryConditionsUsing) game;
-            PlanetaryConditionsDialog pcd = new PlanetaryConditionsDialog(frame, plGame.getPlanetaryConditions());
-            pcd.update(plGame.getPlanetaryConditions());
-            pcd.setVisible(true);
-            plGame.setPlanetaryConditions(pcd.getConditions());
-        }
+        configurePlanetaryDialog(scenario, game);
 
         int port = MMConstants.DEFAULT_PORT;
         String serverPW = "";
@@ -805,13 +788,9 @@ public class MegaMekGUI implements IPreferenceChangeListener {
         Compute.d6();
 
         // start server
-        if (!startServer(serverPW, port, false, null,
-              null, null, scenario.getGameType())) {
+        if (!initializeServer(scenario, game, port, serverPW)) {
             return;
         }
-        server.setGame(game);
-        scenario.applyDamage(gameManager);
-
         if (!localName.isBlank()) {
             startClient(playerName, MMConstants.LOCALHOST, port, scenario.getGameType());
         }
@@ -820,28 +799,72 @@ public class MegaMekGUI implements IPreferenceChangeListener {
 
         // Setup bots; currently, we have no bot that supports anything other than TW
         if (scenario.getGameType() == GameType.TW) {
-            for (int x = 0; x < pa.length; x++) {
-                if (playerTypes[x] == ScenarioDialog.T_BOT) {
-                    logger.info("Adding bot " + pa[x].getName() + " as Princess");
-                    Princess c = new Princess(pa[x].getName(), MMConstants.LOCALHOST, port);
-                    if (scenario.hasBotInfo(pa[x].getName())
-                          && scenario.getBotInfo(pa[x].getName()) instanceof BotParser.PrincessRecord princessRecord) {
-                        c.setBehaviorSettings(princessRecord.behaviorSettings());
-                    }
-                    c.getGame().addGameListener(new BotGUI(frame, c));
-                    c.connect();
-                }
-            }
+            configureBots(scenario, port, pa, playerTypes);
         }
 
         // If he didn't have a name when hasSlot was set, then the host should be an
         // observer.
         if (!hasSlot) {
-            for (Player player : server.getGame().getPlayersList()) {
-                if (player.getName().equals(localName)) {
-                    player.setObserver(true);
-                }
+            setHostAsObserver(localName);
+        }
+    }
+
+    private void setHostAsObserver(String localName) {
+        for (Player player : server.getGame().getPlayersList()) {
+            if (player.getName().equals(localName)) {
+                player.setObserver(true);
             }
+        }
+    }
+
+    private boolean initializeServer(Scenario scenario, IGame game, int port, String serverPW){
+        if (!startServer(serverPW, port, false, null,
+              null, null, scenario.getGameType())) {
+            return false;
+        }
+        server.setGame(game);
+        scenario.applyDamage(gameManager);
+        return true;
+    }
+    private void configureBots(Scenario scenario, int port, Player[] pa, int[] playerTypes) {
+        for (int x = 0; x < pa.length; x++) {
+            if (playerTypes[x] == ScenarioDialog.T_BOT) {
+                logger.info("Adding bot " + pa[x].getName() + " as Princess");
+                Princess c = new Princess(pa[x].getName(), MMConstants.LOCALHOST, port);
+                if (scenario.hasBotInfo(pa[x].getName())
+                      && scenario.getBotInfo(pa[x].getName()) instanceof BotParser.PrincessRecord princessRecord) {
+                    c.setBehaviorSettings(princessRecord.behaviorSettings());
+                }
+                c.getGame().addGameListener(new BotGUI(frame, c));
+                c.connect();
+            }
+        }
+    }
+
+    private static Scenario loadScenario(String filename) throws ScenarioLoaderException, IOException {
+        ScenarioLoader sl = new ScenarioLoader(new File(filename));
+        return sl.load();
+    }
+
+    private void configureOptionsDialog(Scenario scenario, IGame game) {
+        if (!scenario.hasFixedGameOptions() && game instanceof Game twGame) {
+            GameOptionsDialog god = new GameOptionsDialog(frame, twGame.getOptions(), false);
+            god.update(twGame.getOptions());
+            god.setEditable(true);
+            god.setVisible(true);
+            for (IBasicOption opt : god.getOptions()) {
+                IOption orig = game.getOptions().getOption(opt.getName());
+                orig.setValue(opt.getValue());
+            }
+        }
+    }
+
+    private void configurePlanetaryDialog(Scenario scenario, IGame game) {
+        if ((game instanceof PlanetaryConditionsUsing plGame) && !scenario.hasFixedPlanetaryConditions()) {
+            PlanetaryConditionsDialog pcd = new PlanetaryConditionsDialog(frame, plGame.getPlanetaryConditions());
+            pcd.update(plGame.getPlanetaryConditions());
+            pcd.setVisible(true);
+            plGame.setPlanetaryConditions(pcd.getConditions());
         }
     }
 
