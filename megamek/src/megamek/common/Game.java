@@ -54,7 +54,6 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
     private static final MMLogger logger = MMLogger.create(Game.class);
 
     private static final long serialVersionUID = 8376320092671792532L;
-    private final PlayerManager playerManager;
 
     /**
      * A UUID to identify this game instance.
@@ -150,7 +149,6 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
      * Constructor
      */
     public Game() {
-        playerManager= new PlayerManager(this);
         setBoard(0, new Board());
     }
 
@@ -406,8 +404,17 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
 
     @Override
     public void addPlayer(int id, Player player) {
+        player.setGame(this);
 
-        playerManager.addPlayer(id, player);
+        if ((player.isBot()) && (!player.getSingleBlind())) {
+            boolean sbb = getOptions().booleanOption(OptionsConstants.ADVANCED_SINGLE_BLIND_BOTS);
+            boolean db = getOptions().booleanOption(OptionsConstants.ADVANCED_DOUBLE_BLIND);
+            player.setSingleBlind(sbb && db);
+        }
+
+        players.put(id, player);
+        setupTeams();
+        updatePlayer(player);
     }
 
     @Override
@@ -479,14 +486,23 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
 
     @Override
     public void setPlayer(int id, Player player) {
-        playerManager.setPlayer(id, player);
+        player.setGame(this);
+        players.put(id, player);
+        setupTeams();
+        updatePlayer(player);
     }
 
     @Override
     public void removePlayer(int id) {
-        playerManager.removePlayer(id);
+        Player playerToRemove = getPlayer(id);
+        players.remove(id);
+        setupTeams();
+        updatePlayer(playerToRemove);
     }
 
+    private void updatePlayer(Player player) {
+        processGameEvent(new GamePlayerChangeEvent(this, player));
+    }
 
     /**
      * Returns the number of entities owned by the player, regardless of their
