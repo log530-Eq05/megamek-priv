@@ -54,6 +54,8 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
     private static final MMLogger logger = MMLogger.create(Game.class);
 
     private static final long serialVersionUID = 8376320092671792532L;
+    private final PlayerManager playerManager = new PlayerManager(this);
+    private final MineFieldsManager mineFieldsManager = new MineFieldsManager(this,new Hashtable<>(),new Vector<>());
 
     /**
      * A UUID to identify this game instance.
@@ -113,8 +115,8 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
     private int victoryPlayerId = Player.PLAYER_NONE;
     private int victoryTeam = Player.TEAM_NONE;
 
-    private Hashtable<Coords, Vector<Minefield>> minefields = new Hashtable<>();
-    private Vector<Minefield> vibrabombs = new Vector<>();
+
+
     private Vector<AttackHandler> attacks = new Vector<>();
     private Vector<ArtilleryAttackAction> offboardArtilleryAttacks = new Vector<>();
     private Vector<OrbitalBombardment> orbitalBombardmentAttacks = new Vector<OrbitalBombardment>();
@@ -174,17 +176,15 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
     }
 
     public boolean containsMinefield(Coords coords) {
-        return minefields.containsKey(coords);
+        return mineFieldsManager.containsMinefield(coords);
     }
 
     public Vector<Minefield> getMinefields(Coords coords) {
-        Vector<Minefield> mfs = minefields.get(coords);
-        return (mfs == null) ? new Vector<>() : mfs;
+        return mineFieldsManager.getMinefields(coords);
     }
 
     public int getNbrMinefields(Coords coords) {
-        Vector<Minefield> mfs = minefields.get(coords);
-        return (mfs == null) ? 0 : mfs.size();
+        return mineFieldsManager.getNbrMinefields(coords);
     }
 
     /**
@@ -194,102 +194,56 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
      *         minefields. This will not be <code>null</code>.
      */
     public Enumeration<Coords> getMinedCoords() {
-        return minefields.keys();
+        return mineFieldsManager.getMinedCoords();
     }
 
     public void addMinefield(Minefield mf) {
-        addMinefieldHelper(mf);
-        processGameEvent(new GameBoardChangeEvent(this));
+        mineFieldsManager.addMinefield(mf);
     }
 
     public void addMinefields(Vector<Minefield> mines) {
-        for (int i = 0; i < mines.size(); i++) {
-            Minefield mf = mines.elementAt(i);
-            addMinefieldHelper(mf);
-        }
-        processGameEvent(new GameBoardChangeEvent(this));
+        mineFieldsManager.addMinefields(mines);
     }
 
     public void setMinefields(Vector<Minefield> minefields) {
-        clearMinefieldsHelper();
-        for (int i = 0; i < minefields.size(); i++) {
-            Minefield mf = minefields.elementAt(i);
-            addMinefieldHelper(mf);
-        }
-        processGameEvent(new GameBoardChangeEvent(this));
+        mineFieldsManager.setMinefields(minefields);
     }
 
     public void resetMinefieldDensity(Vector<Minefield> newMinefields) {
-        if (newMinefields.isEmpty()) {
-            return;
-        }
-        Vector<Minefield> mfs = minefields.get(newMinefields.firstElement().getCoords());
-        if (mfs != null) {
-            mfs.clear();
-        }
-        for (int i = 0; i < newMinefields.size(); i++) {
-            Minefield mf = newMinefields.elementAt(i);
-            addMinefieldHelper(mf);
-        }
-        processGameEvent(new GameBoardChangeEvent(this));
+        mineFieldsManager.resetMinefieldDensity(newMinefields);
     }
 
     protected void addMinefieldHelper(Minefield mf) {
-        Vector<Minefield> mfs = minefields.get(mf.getCoords());
-        if (mfs == null) {
-            mfs = new Vector<>();
-            mfs.addElement(mf);
-            minefields.put(mf.getCoords(), mfs);
-            return;
-        }
-        mfs.addElement(mf);
+        mineFieldsManager.addMinefieldHelper(mf);
     }
 
     public void removeMinefield(Minefield mf) {
-        removeMinefieldHelper(mf);
-        processGameEvent(new GameBoardChangeEvent(this));
+        mineFieldsManager.removeMinefield(mf);
     }
 
     public void removeMinefieldHelper(Minefield mf) {
-        Vector<Minefield> mfs = minefields.get(mf.getCoords());
-        if (mfs == null) {
-            return;
-        }
 
-        Enumeration<Minefield> e = mfs.elements();
-        while (e.hasMoreElements()) {
-            Minefield mftemp = e.nextElement();
-            if (mftemp.equals(mf)) {
-                mfs.removeElement(mftemp);
-                break;
-            }
-        }
-        if (mfs.isEmpty()) {
-            minefields.remove(mf.getCoords());
-        }
+        mineFieldsManager.removeMinefieldHelper(mf);
     }
 
     public void clearMinefields() {
-        clearMinefieldsHelper();
-        processGameEvent(new GameBoardChangeEvent(this));
+        mineFieldsManager.clearMinefields();
     }
 
     protected void clearMinefieldsHelper() {
-        minefields.clear();
-        vibrabombs.removeAllElements();
-        getPlayersList().forEach(Player::removeMinefields);
+        mineFieldsManager.clearMinefieldsHelper();
     }
 
     public Vector<Minefield> getVibrabombs() {
-        return vibrabombs;
+        return mineFieldsManager.getVibrabombs();
     }
 
     public void addVibrabomb(Minefield mf) {
-        vibrabombs.addElement(mf);
+        mineFieldsManager.addVibrabomb(mf);
     }
 
     public void removeVibrabomb(Minefield mf) {
-        vibrabombs.removeElement(mf);
+        mineFieldsManager.removeVibrabomb(mf);
     }
 
     /**
@@ -299,7 +253,7 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
      * @return true if the minefield contains a vibrabomb.
      */
     public boolean containsVibrabomb(Minefield mf) {
-        return vibrabombs.contains(mf);
+        return mineFieldsManager.containsVibrabomb(mf);
     }
 
     @Override
@@ -386,17 +340,8 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
 
     @Override
     public void addPlayer(int id, Player player) {
-        player.setGame(this);
 
-        if ((player.isBot()) && (!player.getSingleBlind())) {
-            boolean sbb = getOptions().booleanOption(OptionsConstants.ADVANCED_SINGLE_BLIND_BOTS);
-            boolean db = getOptions().booleanOption(OptionsConstants.ADVANCED_DOUBLE_BLIND);
-            player.setSingleBlind(sbb && db);
-        }
-
-        players.put(id, player);
-        setupTeams();
-        updatePlayer(player);
+        playerManager.addPlayer(id, player);
     }
 
     @Override
@@ -468,22 +413,16 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
 
     @Override
     public void setPlayer(int id, Player player) {
-        player.setGame(this);
-        players.put(id, player);
-        setupTeams();
-        updatePlayer(player);
+        playerManager.setPlayer(id, player);
     }
 
     @Override
     public void removePlayer(int id) {
-        Player playerToRemove = getPlayer(id);
-        players.remove(id);
-        setupTeams();
-        updatePlayer(playerToRemove);
+        playerManager.removePlayer(id);
     }
 
     private void updatePlayer(Player player) {
-        processGameEvent(new GamePlayerChangeEvent(this, player));
+        playerManager.updatePlayer(player);
     }
 
     /**
@@ -1357,7 +1296,7 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
         resetPSRs();
         resetArtilleryAttacks();
         resetAttacks();
-        clearMinefields();
+        mineFieldsManager.clearMinefields();
         removeArtyAutoHitHexes();
         flares.removeAllElements();
         illuminatedPositions.clear();
@@ -2700,10 +2639,7 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
      *         winning team. Best to call during GamePhase.VICTORY.
      */
     public boolean isPlayerVictor(Player player) {
-        if (player.getTeam() == Player.TEAM_NONE) {
-            return player.getId() == victoryPlayerId;
-        }
-        return player.getTeam() == victoryTeam;
+        return playerManager.isPlayerVictor(player);
     }
 
     /**
@@ -3526,5 +3462,9 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
      */
     public Optional<Player> playerForPlayername(String playerName) {
         return getPlayersList().stream().filter(p -> p.getName().equals(playerName)).findFirst();
+    }
+
+    public java.util.concurrent.ConcurrentHashMap<Integer, Player> getPlayers() {
+        return players;
     }
 }
