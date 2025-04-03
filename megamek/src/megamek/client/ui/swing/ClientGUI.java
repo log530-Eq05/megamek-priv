@@ -126,6 +126,7 @@ public class ClientGUI extends AbstractClientGUI implements BoardViewListener,
     public static final String FILE_GAME_CONNECT = "fileGameConnect";
     public static final String FILE_GAME_CONNECT_SBF = "fileGameConnectSbf";
     public static final String FILE_GAME_EDIT_BOTS = "editBots";
+    public static final String GAME_RANKING = "gameRanking";
     // board submenu
     public static final String BOARD_NEW = "fileBoardNew";
     public static final String BOARD_OPEN = "fileBoardOpen";
