@@ -2121,92 +2121,19 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
         // then we might not need to remove a turn at all.
         // A turn only needs to be removed when going from 4 inf (2 turns) to
         // 3 inf (1 turn)
-        if (getOptions().booleanOption(OptionsConstants.INIT_INF_MOVE_MULTI)
-                && (entity instanceof Infantry) && getPhase().isMovement()) {
-            if ((getInfantryLeft(entity.getOwnerId()) % getOptions().intOption(
-                    OptionsConstants.INIT_INF_PROTO_MOVE_MULTI)) != 1) {
-                // exception, if the _next_ turn is an infantry turn, remove that
-                // contrived, but may come up e.g. one inf accidentally kills another
-                synchronized (turnVector) {
-                    if (hasMoreTurns()) {
-                        GameTurn nextTurn = turnVector.elementAt(turnIndex + 1);
-                        if (nextTurn instanceof EntityClassTurn ect) {
-                            if (ect.isValidClass(EntityClassTurn.CLASS_INFANTRY)
-                                    && !ect.isValidClass(~EntityClassTurn.CLASS_INFANTRY)) {
-                                turnVector.removeElementAt(turnIndex + 1);
-                            }
-                        }
-                    }
-                }
-                return;
-            }
-        }
+        if (removeTurnInfantry(entity))
+            return;
         // Same thing but for ProtoMeks
-        if (getOptions().booleanOption(OptionsConstants.INIT_PROTOS_MOVE_MULTI)
-                && (entity instanceof ProtoMek) && getPhase().isMovement()) {
-            if ((getProtoMeksLeft(entity.getOwnerId()) % getOptions()
-                    .intOption(OptionsConstants.INIT_INF_PROTO_MOVE_MULTI)) != 1) {
-                // exception, if the _next_ turn is an ProtoMek turn, remove that
-                // contrived, but may come up e.g. one inf accidentally kills another
-                synchronized (turnVector) {
-                    if (hasMoreTurns()) {
-                        GameTurn nextTurn = turnVector.elementAt(turnIndex + 1);
-                        if (nextTurn instanceof EntityClassTurn ect) {
-                            if (ect.isValidClass(EntityClassTurn.CLASS_PROTOMEK)
-                                    && !ect.isValidClass(~EntityClassTurn.CLASS_PROTOMEK)) {
-                                turnVector.removeElementAt(turnIndex + 1);
-                            }
-                        }
-                    }
-                }
-                return;
-            }
-        }
-
+        if (removeTurnProtoMeks(entity))
+            return;
 
         // Same thing but for vehicles
-        if (getOptions().booleanOption(OptionsConstants.ADVGRNDMOV_VEHICLE_LANCE_MOVEMENT)
-                && (entity instanceof Tank) && getPhase().isMovement()) {
-            if ((getVehiclesLeft(entity.getOwnerId()) % getOptions()
-                    .intOption(OptionsConstants.ADVGRNDMOV_VEHICLE_LANCE_MOVEMENT_NUMBER)) != 1) {
-                // exception, if the _next_ turn is a tank turn, remove that
-                // contrived, but may come up e.g. one tank accidentally kills another
-                synchronized (turnVector) {
-                    if (hasMoreTurns()) {
-                        GameTurn nextTurn = turnVector.elementAt(turnIndex + 1);
-                        if (nextTurn instanceof EntityClassTurn ect) {
-                            if (ect.isValidClass(EntityClassTurn.CLASS_TANK)
-                                    && !ect.isValidClass(~EntityClassTurn.CLASS_TANK)) {
-                                turnVector.removeElementAt(turnIndex + 1);
-                            }
-                        }
-                    }
-                }
-                return;
-            }
-        }
+        if (removeTurnVehicles(entity))
+            return;
 
         // Same thing but for meks
-        if (getOptions().booleanOption(OptionsConstants.ADVGRNDMOV_MEK_LANCE_MOVEMENT)
-                && (entity instanceof Mek) && getPhase().isMovement()) {
-            if ((getMeksLeft(entity.getOwnerId()) % getOptions()
-                    .intOption(OptionsConstants.ADVGRNDMOV_MEK_LANCE_MOVEMENT_NUMBER)) != 1) {
-                // exception, if the _next_ turn is a mek turn, remove that
-                // contrived, but may come up e.g. one mek accidentally kills another
-                synchronized (turnVector) {
-                    if (hasMoreTurns()) {
-                        GameTurn nextTurn = turnVector.elementAt(turnIndex + 1);
-                        if (nextTurn instanceof EntityClassTurn ect) {
-                            if (ect.isValidClass(EntityClassTurn.CLASS_MEK)
-                                    && !ect.isValidClass(~EntityClassTurn.CLASS_MEK)) {
-                                turnVector.removeElementAt(turnIndex + 1);
-                            }
-                        }
-                    }
-                }
-                return;
-            }
-        }
+        if (removeTurnMeks(entity))
+            return;
 
         boolean useInfantryMoveLaterCheck = true;
         // If we have the "infantry move later" or "ProtoMeks move later" optional
@@ -2231,7 +2158,75 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
         }
     }
 
+    private boolean removeTurnMeks(Entity entity) {
+        if (getOptions().booleanOption(OptionsConstants.ADVGRNDMOV_MEK_LANCE_MOVEMENT)
+                && (entity instanceof Mek) && getPhase().isMovement()) {
+            if ((getMeksLeft(entity.getOwnerId()) % getOptions()
+                    .intOption(OptionsConstants.ADVGRNDMOV_MEK_LANCE_MOVEMENT_NUMBER)) != 1) {
+                // exception, if the _next_ turn is a mek turn, remove that
+                // contrived, but may come up e.g. one mek accidentally kills another
+                removeNextTurnIfEntityMatches(EntityClassTurn.CLASS_MEK);
+                return true;
+            }
+        }
+        return false;
+    }
 
+    private boolean removeTurnVehicles(Entity entity) {
+        if (getOptions().booleanOption(OptionsConstants.ADVGRNDMOV_VEHICLE_LANCE_MOVEMENT)
+                && (entity instanceof Tank) && getPhase().isMovement()) {
+            if ((getVehiclesLeft(entity.getOwnerId()) % getOptions()
+                    .intOption(OptionsConstants.ADVGRNDMOV_VEHICLE_LANCE_MOVEMENT_NUMBER)) != 1) {
+                // exception, if the _next_ turn is a tank turn, remove that
+                // contrived, but may come up e.g. one tank accidentally kills another
+                removeNextTurnIfEntityMatches(EntityClassTurn.CLASS_TANK);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean removeTurnProtoMeks(Entity entity) {
+        if (getOptions().booleanOption(OptionsConstants.INIT_PROTOS_MOVE_MULTI)
+                && (entity instanceof ProtoMek) && getPhase().isMovement()) {
+            if ((getProtoMeksLeft(entity.getOwnerId()) % getOptions()
+                    .intOption(OptionsConstants.INIT_INF_PROTO_MOVE_MULTI)) != 1) {
+                // exception, if the _next_ turn is an ProtoMek turn, remove that
+                // contrived, but may come up e.g. one inf accidentally kills another
+                removeNextTurnIfEntityMatches(EntityClassTurn.CLASS_PROTOMEK);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean removeTurnInfantry(Entity entity) {
+        if (getOptions().booleanOption(OptionsConstants.INIT_INF_MOVE_MULTI)
+                && (entity instanceof Infantry) && getPhase().isMovement()) {
+            if ((getInfantryLeft(entity.getOwnerId()) % getOptions().intOption(
+                    OptionsConstants.INIT_INF_PROTO_MOVE_MULTI)) != 1) {
+                // exception, if the _next_ turn is an infantry turn, remove that
+                // contrived, but may come up e.g. one inf accidentally kills another
+                removeNextTurnIfEntityMatches(EntityClassTurn.CLASS_INFANTRY);
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    private void removeNextTurnIfEntityMatches(int entityClass) {
+        synchronized (turnVector) {
+            if (hasMoreTurns()) {
+                GameTurn nextTurn = turnVector.elementAt(turnIndex + 1);
+                if (nextTurn instanceof EntityClassTurn ect) {
+                    if (ect.isValidClass(entityClass) && !ect.isValidClass(~entityClass)) {
+                        turnVector.removeElementAt(turnIndex + 1);
+                    }
+                }
+            }
+        }
+    }
     /**
      * Removes any turns that can only be taken by the specified entity. Useful if
      * the specified Entity is being removed from the game to ensure any turns that
