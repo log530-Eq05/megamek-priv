@@ -253,7 +253,7 @@ public class MegaMekGUI implements IPreferenceChangeListener {
         );
     }
 
-    private MegaMekButton createButton(String labelKey, String actionCommand) {
+    public MegaMekButton createButton(String labelKey, String actionCommand) {
         MegaMekButton button = new MegaMekButton(Messages.getString(labelKey), UIComponents.MainMenuButton.getComp(),
               true);
         button.setActionCommand(actionCommand);
