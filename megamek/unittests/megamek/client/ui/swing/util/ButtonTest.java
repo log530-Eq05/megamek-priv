@@ -13,14 +13,17 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 public class ButtonTest {
-
+    private MegaMekGUI megaMekGUI;
     private ActionListener mockListener;
+
 
     @BeforeEach
     void setUp() {
-        MegaMekGUI megaMekGUI = mock(MegaMekGUI.class);
+        megaMekGUI = mock(MegaMekGUI.class);
         mockListener = mock(ActionListener.class);
-        Messages messagesMock = mock(Messages.class);
+
+        when(megaMekGUI.createButton(anyString(), anyString()))
+              .thenAnswer(invocation -> new MegaMekButton(invocation.getArgument(0), invocation.getArgument(1), true));
     }
 
     @Test
@@ -28,16 +31,36 @@ public class ButtonTest {
         String labelKey = "testLabel";
         String actionCommand = "testCommand";
 
-
-        MegaMekButton button = new MegaMekButton(labelKey, "MainMenuButton", true);
+        MegaMekButton button = megaMekGUI.createButton(labelKey, "MainMenuButton");
         button.setActionCommand(actionCommand);
         button.addActionListener(mockListener);
 
         assertNotNull(button);
-        assertEquals("testLabel", button.getText());
-        assertEquals("testCommand", button.getActionCommand());
+        assertEquals(labelKey, button.getText());
+        assertEquals(actionCommand, button.getActionCommand());
 
         button.doClick();
         verify(mockListener, times(1)).actionPerformed(any());
     }
+
+    @Test
+    void testCreateButtonWithoutLabel() {
+        MegaMekButton button = megaMekGUI.createButton("", "MainMenuButton");
+
+        assertNotNull(button);
+        assertEquals("", button.getText());
+    }
+
+    @Test
+    void testButtonClickMultipleTimes() {
+        MegaMekButton button = megaMekGUI.createButton("MultiClickButton", "MainMenuButton");
+        button.addActionListener(mockListener);
+
+        button.doClick();
+        button.doClick();
+        button.doClick();
+
+        verify(mockListener, times(3)).actionPerformed(any());
+    }
+
 }
