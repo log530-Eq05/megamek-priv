@@ -63,7 +63,7 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
     /**
      * Stores the version of MM, so that it can be serialized in saved games.
      */
-    public final Version version = MMConstants.VERSION;
+    public static final Version version = MMConstants.VERSION;
 
     private IGameOptions options = new GameOptions();
 
@@ -329,6 +329,26 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
 
         // Get all NO_TEAM players. If team_initiative is false, all
         // players are on their own teams for initiative purposes.
+        assignPlayerNoTeam(initTeams, useTeamInit);
+
+        if (useTeamInit) {
+            // Now, go through all the teams, and add the appropriate player
+            initializeTeam(initTeams);
+        }
+
+        // May need to copy state over from previous teams, such as initiative
+        if (!getPhase().isLounge()) {
+            carryOverInitiativeSettings(initTeams);
+        }
+
+        // Carry over faction settings
+        carryOverFactionSettings(initTeams);
+
+        teams.clear();
+        teams.addAll(initTeams);
+    }
+
+    private void assignPlayerNoTeam(Vector<Team> initTeams, boolean useTeamInit) {
         for (Player player : getPlayersList()) {
             // Ignore players not on a team
             if (player.getTeam() == Player.TEAM_UNASSIGNED) {
@@ -340,28 +360,28 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
                 initTeams.addElement(new_team);
             }
         }
+    }
 
-        if (useTeamInit) {
-            // Now, go through all the teams, and add the appropriate player
-            for (int t = Player.TEAM_NONE + 1; t < Player.TEAM_NAMES.length; t++) {
-                Team new_team = null;
-                for (Player player : getPlayersList()) {
-                    if (player.getTeam() == t) {
-                        if (new_team == null) {
-                            new_team = new Team(t);
-                        }
-                        new_team.addPlayer(player);
+    private void initializeTeam(Vector<Team> initTeams) {
+        for (int t = Player.TEAM_NONE + 1; t < Player.TEAM_NAMES.length; t++) {
+            Team new_team = null;
+            for (Player player : getPlayersList()) {
+                if (player.getTeam() == t) {
+                    if (new_team == null) {
+                        new_team = new Team(t);
                     }
-                }
-
-                if (new_team != null) {
-                    initTeams.addElement(new_team);
+                    new_team.addPlayer(player);
                 }
             }
-        }
 
-        // May need to copy state over from previous teams, such as initiative
-        if (!getPhase().isLounge()) {
+            if (new_team != null) {
+                initTeams.addElement(new_team);
+            }
+        }
+    }
+
+    private void carryOverInitiativeSettings(Vector<Team> initTeams) {
+
             for (Team newTeam : initTeams) {
                 for (Team oldTeam : teams) {
                     if (newTeam.equals(oldTeam)) {
@@ -371,7 +391,8 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
             }
         }
 
-        // Carry over faction settings
+
+    private void carryOverFactionSettings(Vector<Team> initTeams) {
         for (Team newTeam : initTeams) {
             for (Team oldTeam : teams) {
                 if (newTeam.equals(oldTeam)) {
@@ -379,9 +400,6 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
                 }
             }
         }
-
-        teams.clear();
-        teams.addAll(initTeams);
     }
 
     @Override
@@ -1197,8 +1215,8 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
      * @param genEvent A flag that determines whether a GameEntityNewEvent is
      *                 generated.
      */
-    public synchronized void addEntity(Entity entity, boolean genEvent) {
-        entity.setGame(this);
+
+    private void configureEntityAttributes(Entity entity) {
         if (entity instanceof Mek entityMek) {
             entityMek.setBAGrabBars();
             entityMek.setProtoMekClampMounts();
@@ -1206,35 +1224,26 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
             entityTank.setBAGrabBars();
             entityTank.setTrailerHitches();
         }
-
+    }
+    public synchronized void addEntity(Entity entity, boolean genEvent) {
+        entity.setGame(this);
+        configureEntityAttributes(entity);
         // Add magnetic clamp mounts
-        if ((entity instanceof Mek) && !entity.isOmni() && !entity.hasBattleArmorHandles()) {
-            entity.addTransporter(new ClampMountMek());
-        } else if ((entity instanceof Tank entityTank)
-                && !entityTank.isOmni()
-                && !entityTank.hasBattleArmorHandles()) {
-            entityTank.addTransporter(new ClampMountTank());
-        }
-
+        configurateMagneticClampMounts(entity);
         entity.setGameOptions();
-        if (entity.getC3UUIDAsString() == null) {
-            // We don't want to be resetting a UUID that exists already!
-            entity.setC3UUID();
-        }
+        configurateUniqueC3UUID(entity);
         // Add this Entity, ensuring that its id is unique
-        int id = entity.getId();
-        if (isIdUsed(id)) {
-            id = getNextEntityId();
-            entity.setId(id);
-        }
-        inGameObjects.put(id, entity);
-        updateEntityPositionLookup(entity, null);
-
-        if (id > lastEntityId) {
-            lastEntityId = id;
-        }
-
+        addEntityToGame(entity);
         // And... lets get this straight now.
+        configurateEjectSettings(entity);
+
+        if (genEvent) {
+            entity.setInitialBV(entity.calculateBattleValue(false, false));
+            processGameEvent(new GameEntityNewEvent(this, entity));
+        }
+    }
+
+    private void configurateEjectSettings(Entity entity) {
         if (entity instanceof Mek mek) {
             if (getOptions().booleanOption(OptionsConstants.RPG_CONDITIONAL_EJECTION)) {
                 mek.setAutoEject(true);
@@ -1246,10 +1255,36 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
                 mek.setAutoEject(!entity.hasCase() && !entity.hasCASEII());
             }
         }
+    }
 
-        if (genEvent) {
-            entity.setInitialBV(entity.calculateBattleValue(false, false));
-            processGameEvent(new GameEntityNewEvent(this, entity));
+    private void addEntityToGame(Entity entity) {
+        int id = entity.getId();
+        if (isIdUsed(id)) {
+            id = getNextEntityId();
+            entity.setId(id);
+        }
+        inGameObjects.put(id, entity);
+        updateEntityPositionLookup(entity, null);
+
+        if (id > lastEntityId) {
+            lastEntityId = id;
+        }
+    }
+
+    private static void configurateUniqueC3UUID(Entity entity) {
+        if (entity.getC3UUIDAsString() == null) {
+            // We don't want to be resetting a UUID that exists already!
+            entity.setC3UUID();
+        }
+    }
+
+    private static void configurateMagneticClampMounts(Entity entity) {
+        if ((entity instanceof Mek) && !entity.isOmni() && !entity.hasBattleArmorHandles()) {
+            entity.addTransporter(new ClampMountMek());
+        } else if ((entity instanceof Tank entityTank)
+                && !entityTank.isOmni()
+                && !entityTank.hasBattleArmorHandles()) {
+            entityTank.addTransporter(new ClampMountTank());
         }
     }
 
@@ -2128,6 +2163,7 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
             }
         }
 
+
         // Same thing but for vehicles
         if (getOptions().booleanOption(OptionsConstants.ADVGRNDMOV_VEHICLE_LANCE_MOVEMENT)
                 && (entity instanceof Tank) && getPhase().isMovement()) {
@@ -2194,6 +2230,7 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
             }
         }
     }
+
 
     /**
      * Removes any turns that can only be taken by the specified entity. Useful if
