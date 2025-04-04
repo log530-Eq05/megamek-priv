@@ -11480,8 +11480,8 @@ public class TWGameManager extends AbstractGameManager {
         addReport(new Report(4000, Report.PUBLIC));
 
         // add any pending charges
-        for (Enumeration<AttackAction> i = game.getCharges(); i.hasMoreElements();) {
-            game.addAction(i.nextElement());
+        for (Iterator<AttackAction> i = game.getCharges(); i.hasNext(); ) {
+            game.addAction(i.next());
         }
         game.resetCharges();
 

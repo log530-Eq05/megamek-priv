@@ -9858,7 +9858,7 @@ public abstract class Entity extends TurnOrdered implements Transporter, Targeta
         return hasAbility(OptionsConstants.PILOT_MANEUVERING_ACE);
     }
 
-    public Enumeration<Entity> getKills() {
+    public Iterator<Entity> getKills() {
         final int killer = id;
         return game.getSelectedOutOfGameEntities(entity -> killer == entity.killerId);
     }
