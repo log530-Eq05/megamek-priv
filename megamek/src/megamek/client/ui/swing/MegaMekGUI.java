@@ -111,7 +111,13 @@ public class MegaMekGUI implements IPreferenceChangeListener {
     private CommonSettingsDialog settingsDialog;
 
     private static MegaMekController controller;
+    public JFrame getFrame() {
+        return frame;
+    }
 
+    public void setFrame(JFrame frame) {
+        this.frame = frame;
+    }
     public void start(boolean show) {
         createGUI(show);
     }
@@ -203,7 +209,7 @@ public class MegaMekGUI implements IPreferenceChangeListener {
      * Display the main menu.
      */
 
-    private void showMainMenu() {
+    public void showMainMenu() {
         SkinSpecification skinSpec = SkinXMLHandler.getSkin(UIComponents.MainMenuBorder.getComp(), true);
         setupFrameAppearance();
 
@@ -223,14 +229,14 @@ public class MegaMekGUI implements IPreferenceChangeListener {
         frame.setLocationRelativeTo(null);
     }
 
-    private void setupFrameAppearance() {
+    public void setupFrameAppearance() {
         frame.getContentPane().removeAll();
         frame.setBackground(SystemColor.menu);
         frame.setForeground(SystemColor.menuText);
         frame.setResizable(false);
     }
 
-    private JLabel createVersionLabel(SkinSpecification skinSpec) {
+    public JLabel createVersionLabel(SkinSpecification skinSpec) {
         JLabel labVersion = new JLabel(Messages.getString("MegaMek.Version") + MMConstants.VERSION, JLabel.CENTER);
         labVersion.setPreferredSize(new Dimension(250, 15));
         if (!skinSpec.fontColors.isEmpty()) {
@@ -239,7 +245,7 @@ public class MegaMekGUI implements IPreferenceChangeListener {
         return labVersion;
     }
 
-    private List<MegaMekButton> createMenuButtons() {
+    public List<MegaMekButton> createMenuButtons() {
         return List.of(
 
               createButton("MegaMek.hostNewGame.label", ClientGUI.FILE_GAME_NEW),
@@ -261,12 +267,12 @@ public class MegaMekGUI implements IPreferenceChangeListener {
         return button;
     }
 
-    private JLabel createSplashScreen(SkinSpecification skinSpec, Dimension screenSize) {
+    public JLabel createSplashScreen(SkinSpecification skinSpec, Dimension screenSize) {
         Image imgSplash = getSplashScreen(skinSpec.backgrounds, screenSize.width, screenSize.height);
         return UIUtil.createSplashComponent(imgSplash, frame, screenSize);
     }
 
-    private Dimension calculateButtonSize(List<MegaMekButton> buttons, Dimension screenSize, JLabel splash) {
+    public Dimension calculateButtonSize(List<MegaMekButton> buttons, Dimension screenSize, JLabel splash) {
         FontMetrics metrics = buttons.get(0).getFontMetrics(buttons.get(0).getFont());
         int width = metrics.stringWidth(buttons.get(0).getText());
         int height = metrics.getHeight();
