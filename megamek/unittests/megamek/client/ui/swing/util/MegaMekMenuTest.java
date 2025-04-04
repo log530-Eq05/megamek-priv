@@ -52,7 +52,7 @@ public class MegaMekMenuTest {
 
         boolean hasButton = false;
         for (Component comp : components) {
-            if (comp instanceof JButton || comp instanceof MegaMekButton) {
+            if (comp instanceof JButton ) {
                 hasButton = true;
                 break;
             }
