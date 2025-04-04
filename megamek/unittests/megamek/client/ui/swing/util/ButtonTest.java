@@ -8,9 +8,10 @@ import megamek.client.ui.swing.widget.MegaMekButton;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-
+import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionListener;
-
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -46,7 +47,50 @@ public class ButtonTest {
         verify(mockListener, times(1)).actionPerformed(any());
     }
 
+    @Test
+    void testCreateMenuButtonsReturnsNonEmptyListOfButtons() {
+        List<MegaMekButton> buttons = megaMekGUI.createMenuButtons();
 
+        assertNotNull(buttons, "Button list should not be null");
+        assertFalse(buttons.isEmpty(), "Button list should not be empty");
+
+        for (MegaMekButton button : buttons) {
+            assertNotNull(button, "Button should not be null");
+            assertTrue(button instanceof MegaMekButton, "Each item should be a MegaMekButton");
+        }
+    }
+    @Test
+    void testCreateButtonWithoutLabel() {
+        MegaMekButton button = megaMekGUI.createButton("", "MainMenuButton");
+
+        assertNotNull(button);
+        assertEquals("", button.getText());
+    }
+
+    @Test
+    void testButtonClickMultipleTimes() {
+        MegaMekButton button = megaMekGUI.createButton("MultiClickButton", "MainMenuButton");
+        button.addActionListener(mockListener);
+
+        button.doClick();
+        button.doClick();
+        button.doClick();
+
+        verify(mockListener, times(3)).actionPerformed(any());
+    }
+
+    @Test
+    void testCalculateButtonSize() {
+        List<MegaMekButton> buttons = megaMekGUI.createMenuButtons();
+        Dimension screenSize = new Dimension(1024, 768);
+        JLabel mockSplash = mock(JLabel.class);
+        when(mockSplash.getPreferredSize()).thenReturn(new Dimension(500, 300));
+
+        Dimension buttonSize = megaMekGUI.calculateButtonSize(buttons, screenSize, mockSplash);
+        assertNotNull(buttonSize);
+        assertTrue(buttonSize.getWidth() > 0);
+        assertTrue(buttonSize.getHeight() > 0);
+    }
 
 
 }
