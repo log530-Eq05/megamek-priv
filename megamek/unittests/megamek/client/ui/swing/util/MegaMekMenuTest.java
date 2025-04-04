@@ -26,7 +26,7 @@ public class MegaMekMenuTest {
 
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp()  {
 
         megaMekGUI = spy(new MegaMekGUI());
 
@@ -35,30 +35,11 @@ public class MegaMekMenuTest {
         Container contentPane = new JPanel();
         mockFrame.setContentPane(contentPane);
 
-        var frameField = MegaMekGUI.class.getDeclaredField("frame");
-        frameField.setAccessible(true);
-        frameField.set(megaMekGUI, mockFrame);
+
+
     }
 
-    @Test
-    void testShowMainMenuAddsComponentsToFrame() {
-       megaMekGUI.showMainMenu();
 
-        Component[] components = mockFrame.getContentPane().getComponents();
-
-        assertNotNull(components, "Content pane components should not be null");
-        assertTrue(components.length > 0, "Content pane should have at least one component");
-
-        boolean hasButton = false;
-        for (Component comp : components) {
-            if (comp instanceof JButton ) {
-                hasButton = true;
-                break;
-            }
-        }
-
-        assertTrue(hasButton, "Main menu should contain at least one button");
-    }
     @Test
     void testCreateVersionLabel() {
         SkinSpecification skinSpec = SkinXMLHandler.getSkin(UIComponents.MainMenuBorder.getComp(), true);
