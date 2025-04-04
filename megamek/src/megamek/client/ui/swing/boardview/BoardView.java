@@ -3671,8 +3671,8 @@ public final class BoardView extends AbstractBoardView implements BoardListener,
             }
         }
 
-        for (Enumeration<AttackAction> i = game.getCharges(); i.hasMoreElements();) {
-            EntityAction ea = i.nextElement();
+        for (Iterator<AttackAction> i = game.getCharges(); i.hasNext();) {
+            EntityAction ea = i.next();
             if (ea instanceof PhysicalAttackAction) {
                 addAttack((AttackAction) ea);
             }

@@ -72,7 +72,7 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
     /**
      * Track entities removed from the game (probably by death)
      */
-    private Vector<Entity> vOutOfGame = new Vector<>();
+    private ArrayList<Entity> vOutOfGame = new ArrayList<>();
 
     private final Map<Coords, HashSet<Integer>> entityPosLookup = new HashMap<>();
 
@@ -97,13 +97,13 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
     private GamePhase lastPhase = GamePhase.UNKNOWN;
 
     // phase state
-    private Vector<AttackAction> pendingCharges = new Vector<>();
+    private ArrayList<AttackAction> pendingCharges = new ArrayList<>();
     private Vector<AttackAction> pendingRams = new Vector<>();
     private Vector<AttackAction> pendingTeleMissileAttacks = new Vector<>();
     private Vector<PilotingRollData> pilotRolls = new Vector<>();
     private Vector<PilotingRollData> extremeGravityRolls = new Vector<>();
     private Vector<PilotingRollData> controlRolls = new Vector<>();
-    private Vector<Team> initiativeRerollRequests = new Vector<>();
+    private ArrayList<Team> initiativeRerollRequests = new ArrayList<>();
 
     private final GameReports gameReports = new GameReports();
 
@@ -826,7 +826,7 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
     /**
      * @return the actual vector for the out-of-game entities
      */
-    public Vector<Entity> getOutOfGameEntitiesVector() {
+    public ArrayList<Entity> getOutOfGameEntitiesVector() {
         return vOutOfGame;
     }
 
@@ -839,14 +839,14 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
      */
     public void setOutOfGameEntitiesVector(final List<Entity> vOutOfGame) {
         Objects.requireNonNull(vOutOfGame, "New out-of-game list should not be null.");
-        Vector<Entity> newOutOfGame = new Vector<>();
+        ArrayList<Entity> newOutOfGame = new ArrayList<>();
 
         // Add entities for the existing players to the game.
         for (Entity entity : vOutOfGame) {
             int ownerId = entity.getOwnerId();
             if ((ownerId != Entity.NONE) && (getPlayer(ownerId) != null)) {
                 entity.setGame(this);
-                newOutOfGame.addElement(entity);
+                newOutOfGame.add(entity);
             }
         }
         this.vOutOfGame = newOutOfGame;
@@ -862,9 +862,9 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
      */
     public @Nullable Entity getOutOfGameEntity(int id) {
         Entity match = null;
-        Enumeration<Entity> iter = vOutOfGame.elements();
-        while ((null == match) && iter.hasMoreElements()) {
-            Entity entity = iter.nextElement();
+        Iterator<Entity> iter = vOutOfGame.iterator();
+        while ((null == match) && iter.hasNext()) {
+            Entity entity = iter.next();
             if (id == entity.getId()) {
                 match = entity;
             }
@@ -1327,7 +1327,7 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
         // do not keep never-joined entities
         if ((vOutOfGame != null)
               && (condition != IEntityRemovalConditions.REMOVE_NEVER_JOINED)) {
-            vOutOfGame.addElement(toRemove);
+            vOutOfGame.add(toRemove);
         }
 
         // We also need to remove it from the list of things to be deployed...
@@ -1348,7 +1348,7 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
         uuid = UUID.randomUUID();
 
         entityPosLookup.clear();
-        vOutOfGame.removeAllElements();
+        vOutOfGame.clear();
         turnVector.clear();
 
         clearActions();
@@ -2269,7 +2269,7 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
     }
 
     public void addInitiativeRerollRequest(Team t) {
-        initiativeRerollRequests.addElement(t);
+        initiativeRerollRequests.add(t);
     }
 
     public void rollInitAndResolveTies() {
@@ -2286,7 +2286,7 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
             TurnOrdered.rollInitAndResolveTies(teams, initiativeRerollRequests,
                   getOptions().booleanOption(OptionsConstants.INIT_INITIATIVE_STREAK_COMPENSATION));
         }
-        initiativeRerollRequests.removeAllElements();
+        initiativeRerollRequests.clear();
 
     }
 
@@ -2305,7 +2305,7 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
      * Adds a pending displacement attack to the list for this phase.
      */
     public void addCharge(AttackAction ea) {
-        pendingCharges.addElement(ea);
+        pendingCharges.add(ea);
         processGameEvent(new GameNewActionEvent(this, ea));
     }
 
@@ -2315,15 +2315,15 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
      *
      * @return
      */
-    public Enumeration<AttackAction> getCharges() {
-        return pendingCharges.elements();
+    public Iterator<AttackAction> getCharges() {
+        return pendingCharges.iterator();
     }
 
     /**
      * Resets the pending charges list.
      */
     public void resetCharges() {
-        pendingCharges.removeAllElements();
+        pendingCharges.clear();
     }
 
     /**
@@ -2839,32 +2839,32 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
      *         accepts. This value will not be <code>null</code> but it may be
      *         empty.
      */
-    public Enumeration<Entity> getSelectedOutOfGameEntities(EntitySelector selector) {
-        Enumeration<Entity> retVal;
+    public Iterator<Entity> getSelectedOutOfGameEntities(EntitySelector selector) {
+        Iterator<Entity> retVal;
 
         // If no selector was supplied, return all entities.
         if (null == selector) {
-            retVal = vOutOfGame.elements();
+            retVal = vOutOfGame.iterator();
         }
 
         // Otherwise, return an anonymous Enumeration
         // that selects entities in this game.
         else {
             final EntitySelector entry = selector;
-            retVal = new Enumeration<>() {
+            retVal = new Iterator<Entity>() {
                 private EntitySelector entitySelector = entry;
                 private Entity current = null;
-                private Enumeration<Entity> iter = vOutOfGame.elements();
+                private Iterator<Entity> iter = vOutOfGame.iterator();
 
                 // Do any more entities meet the selection criteria?
-                @Override
-                public boolean hasMoreElements() {
+
+                public boolean hasNext() {
                     // See if we have a pre-approved entity.
                     if (null == current) {
 
                         // Find the first acceptable entity
-                        while ((null == current) && iter.hasMoreElements()) {
-                            current = iter.nextElement();
+                        while ((null == current) && iter.hasNext()) {
+                            current = iter.next();
                             if (!entitySelector.accept(current)) {
                                 current = null;
                             }
@@ -2874,10 +2874,10 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
                 }
 
                 // Get the next entity that meets the selection criteria.
-                @Override
-                public Entity nextElement() {
+
+                public Entity next() {
                     // Pre-approve an entity.
-                    if (!hasMoreElements()) {
+                    if (!hasNext()) {
                         return null;
                     }
 
@@ -2917,9 +2917,9 @@ public final class Game extends AbstractGame implements Serializable, PlanetaryC
 
         // Otherwise, count the entities that meet the selection criteria.
         else {
-            Enumeration<Entity> iter = vOutOfGame.elements();
-            while (iter.hasMoreElements()) {
-                if (selector.accept(iter.nextElement())) {
+            Iterator<Entity> iter = vOutOfGame.iterator();
+            while (iter.hasNext()) {
+                if (selector.accept(iter.next())) {
                     retVal++;
                 }
             }
