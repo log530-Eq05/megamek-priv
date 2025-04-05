@@ -60,7 +60,7 @@ public class PlayerListDialog extends JDialog implements ActionListener {
             @Override
             public void windowClosing(WindowEvent e) {
                 actionPerformed(new ActionEvent(butOkay,
-                        ActionEvent.ACTION_PERFORMED, butOkay.getText()));
+                      ActionEvent.ACTION_PERFORMED, butOkay.getText()));
             }
         });
 
@@ -72,7 +72,7 @@ public class PlayerListDialog extends JDialog implements ActionListener {
         if (modal) {
             setModal(true);
             setLocation(parent.getLocation().x + (parent.getSize().width / 2) - (getSize().width / 2),
-                    parent.getLocation().y + (parent.getSize().height / 2) - (getSize().height / 2));
+                  parent.getLocation().y + (parent.getSize().height / 2) - (getSize().height / 2));
         } else {
             setModal(false);
             setLocation(GUIP.getPlayerListPosX(), GUIP.getPlayerListPosY());
@@ -80,7 +80,7 @@ public class PlayerListDialog extends JDialog implements ActionListener {
     }
 
     public void refreshPlayerList(JList<String> playerList,
-            Client client) {
+          Client client) {
         refreshPlayerList(playerList, client, false);
     }
 
@@ -92,66 +92,82 @@ public class PlayerListDialog extends JDialog implements ActionListener {
     }
 
     /**
-     * Refreshes the player list component with information from the game
-     * object.
+     * Part Refractored below
      */
-    public void refreshPlayerList(JList<String> playerList,
-            Client client, boolean displayTeam) {
-        ((DefaultListModel<String>) playerList.getModel()).removeAllElements();
+    public void refreshPlayerList(JList<String> playerList, Client client, boolean displayTeam) {
+        DefaultListModel<String> model = (DefaultListModel<String>) playerList.getModel();
+        model.removeAllElements();
 
         for (Player player : sortedPlayerList(client.getGame())) {
-            StringBuffer playerDisplay = new StringBuffer(String.format("%-12s", player.getName()));
-
-            // Append team information
-            if (displayTeam) {
-                Team team = client.getGame().getTeamForPlayer(player);
-                if (team != null) {
-                    if (team.getId() == Player.TEAM_NONE) {
-                        playerDisplay.append(Messages.getString("PlayerListDialog.NoTeam"));
-                    } else {
-                        playerDisplay.append(MessageFormat.format(Messages.getString("PlayerListDialog.Team"), team.getId()));
-                    }
-                } else {
-                    playerDisplay.append(Messages.getString("PlayerListDialog.TeamLess"));
-                }
-            }
-
-            if (player.isGameMaster()) {
-                playerDisplay.append(Messages.getString("PlayerListDialog.player_gm"));
-            }
-
-            if (player.isGhost()) {
-                playerDisplay.append(Messages.getString("PlayerListDialog.player_ghost"));
-            } else {
-                if (player.isBot()) {
-                    playerDisplay.append(Messages.getString("PlayerListDialog.player_bot"));
-                } else {
-                    playerDisplay.append(Messages.getString("PlayerListDialog.player_human"));
-                }
-                if (player.isObserver()) {
-                    playerDisplay.append(Messages.getString("PlayerListDialog.player_observer"));
-                } else if (player.isDone()) {
-                    playerDisplay.append(Messages.getString("PlayerListDialog.player_done"));
-                }
-            }
-
-            // this may be too much detail long term, but is useful for understanding the modes
-            // during testing
-            if (player.getSeeAll()) {
-                playerDisplay.append(Messages.getString("PlayerListDialog.player_seeall"));
-            }
-
-            if (player.getSingleBlind()) {
-                playerDisplay.append(Messages.getString("PlayerListDialog.player_singleblind"));
-            }
-
-            if (player.canIgnoreDoubleBlind()) {
-                playerDisplay.append(Messages.getString("PlayerListDialog.player_ignoreDoubleBlind"));
-            }
-
-            ((DefaultListModel<String>) playerList.getModel()).addElement(playerDisplay.toString());
+            model.addElement(getPlayerDisplayString(player, client, displayTeam));
         }
     }
+
+    private String getPlayerDisplayString(Player player, Client client, boolean displayTeam) {
+        StringBuffer playerDisplay = new StringBuffer(String.format("%-12s", player.getName()));
+
+        playerDisplay.append(getTeamInfo(player, client, displayTeam));
+        playerDisplay.append(getPlayerTypeInfo(player));
+        playerDisplay.append(getVisibilityInfo(player));
+
+        return playerDisplay.toString();
+    }
+
+    private String getTeamInfo(Player player, Client client, boolean displayTeam) {
+        if (!displayTeam) return "";
+
+        Team team = client.getGame().getTeamForPlayer(player);
+        if (team == null) {
+            return Messages.getString("PlayerListDialog.TeamLess");
+        } else if (team.getId() == Player.TEAM_NONE) {
+            return Messages.getString("PlayerListDialog.NoTeam");
+        } else {
+            return MessageFormat.format(Messages.getString("PlayerListDialog.Team"), team.getId());
+        }
+    }
+
+    private String getPlayerTypeInfo(Player player) {
+        StringBuilder info = new StringBuilder();
+
+        if (player.isGameMaster()) {
+            info.append(Messages.getString("PlayerListDialog.player_gm"));
+        }
+
+        if (player.isGhost()) {
+            info.append(Messages.getString("PlayerListDialog.player_ghost"));
+        } else if (player.isBot()) {
+            info.append(Messages.getString("PlayerListDialog.player_bot"));
+        } else {
+            info.append(Messages.getString("PlayerListDialog.player_human"));
+        }
+
+        if (player.isObserver()) {
+            info.append(Messages.getString("PlayerListDialog.player_observer"));
+        } else if (player.isDone()) {
+            info.append(Messages.getString("PlayerListDialog.player_done"));
+        }
+
+        return info.toString();
+    }
+
+    private String getVisibilityInfo(Player player) {
+        StringBuilder visibilityInfo = new StringBuilder();
+
+        if (player.getSeeAll()) {
+            visibilityInfo.append(Messages.getString("PlayerListDialog.player_seeall"));
+        }
+        if (player.getSingleBlind()) {
+            visibilityInfo.append(Messages.getString("PlayerListDialog.player_singleblind"));
+        }
+        if (player.canIgnoreDoubleBlind()) {
+            visibilityInfo.append(Messages.getString("PlayerListDialog.player_ignoreDoubleBlind"));
+        }
+
+        return visibilityInfo.toString();
+    }
+    /**
+     * Part Refractored above
+     */
 
     public void refreshPlayerList() {
         refreshPlayerList(playerList, client, true);
@@ -191,3 +207,4 @@ public class PlayerListDialog extends JDialog implements ActionListener {
         }
     }
 }
+

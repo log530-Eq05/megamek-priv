@@ -606,7 +606,7 @@ public final class Player extends TurnOrdered {
         return bonus;
     }
 
-    /**
+    /** ----------------refactored part below-----------------------------------------------
      * @return the bonus to this player's initiative rolls for the highest value initiative
      * (i.e. the 'commander')
      */
@@ -614,40 +614,56 @@ public final class Player extends TurnOrdered {
         if (game == null) {
             return 0;
         }
-        int commandb = 0;
+
+        int commandBonus = 0;
+
         for (InGameObject unit : game.getInGameObjects()) {
-            if (unit instanceof Entity) {
-                Entity entity = (Entity) unit;
-                boolean useCommandInit = game.getOptions().booleanOption(OptionsConstants.RPG_COMMAND_INIT);
-                boolean checkThisTurn = ((null != entity.getOwner())
-                      && entity.getOwner().equals(this)
-                      && !entity.isDestroyed()
-                      && entity.getCrew().isActive()
-                      && !entity.isCaptured()
-                      && !(entity instanceof MekWarrior))
-                      && ((entity.isDeployed() && !entity.isOffBoard()) || (entity.getDeployRound() == (game.getCurrentRound() + 1)));
-                if (checkThisTurn) {
-                    int bonus = 0;
-                    if (useCommandInit) {
-                        bonus = entity.getCrew().getCommandBonus();
-                    }
-                    //Even if the RPG option is not enabled, we still get the command bonus provided by special equipment.
-                    //Since we are not designating a single force commander at this point, we assume a superheavy tripod
-                    //is the force commander if that gives the highest bonus.
-                    if (entity.hasCommandConsoleBonus() || entity.getCrew().hasActiveTechOfficer()) {
-                        bonus += 2;
-                    }
-                    //Once we've gotten the status of the command console (if any), reset the flag that tracks
-                    //the previous turn's action.
-                    if (bonus > commandb) {
-                        commandb = bonus;
-                    }
+            if (unit instanceof Entity entity && isEligibleForCommandBonus(entity)) {
+                int bonus = calculateBonusFor(entity);
+                if (bonus > commandBonus) {
+                    commandBonus = bonus;
                 }
             }
         }
-        return commandb;
+
+        return commandBonus;
     }
 
+    /**
+     * Vérifie si une unité est admissible pour accorder un bonus de commandement.
+     */
+    private boolean isEligibleForCommandBonus(Entity entity) {
+        return entity.getOwner() != null
+              && entity.getOwner().equals(this)
+              && !entity.isDestroyed()
+              && entity.getCrew().isActive()
+              && !entity.isCaptured()
+              && !(entity instanceof MekWarrior)
+              && ((entity.isDeployed() && !entity.isOffBoard())
+              || (entity.getDeployRound() == (game.getCurrentRound() + 1)));
+    }
+
+    /**
+     * Calcule le bonus de commandement pour une entité admissible.
+     */
+    private int calculateBonusFor(Entity entity) {
+        int bonus = 0;
+
+        if (game.getOptions().booleanOption(OptionsConstants.RPG_COMMAND_INIT)) {
+            bonus += entity.getCrew().getCommandBonus();
+        }
+
+        if (entity.hasCommandConsoleBonus() || entity.getCrew().hasActiveTechOfficer()) {
+            bonus += 2;
+        }
+
+        return bonus;
+    }
+
+    /**
+     *
+     * ------------refactored part above ---------------------------
+     */
     public String getColorForPlayer() {
         return "<B><font color='" + getColour().getHexString(0x00F0F0F0) + "'>" + getName() + "</font></B>";
     }
